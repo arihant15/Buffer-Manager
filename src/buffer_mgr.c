@@ -8,22 +8,24 @@
 //we are using something similar to linked list to define the buffer struct
 
 // defining the buffer
-struct buffer
+typedef struct Buffer
 {
 	//int pos; //position of the page frame
 	//int pageNum; //page number
-	struct BM_PageHandle ph; 
+	BM_PageHandle ph;
 	bool dirty; //dirty page or not ?
 	//char *data; //data of the page
 	int count; //general counter to count how old of the page
-	struct buffer *next; // pointer to the next buffer
-} start = NULL;
+	struct Buffer *next; // pointer to the next buffer
+} Buffer;
+
+Buffer *start = NULL;
 
 //function to calculate and return the length of the buffer pool
 int lengthofPool()
 {
 	int count = 0;
-	struct buffer *root;
+	Buffer *root;
 	root = start; //make root equals the first element in the buffer pool
 	while(root != NULL)
 	{
@@ -34,16 +36,16 @@ int lengthofPool()
 }
 
 //function returns the page frame number 
-int search(pageNumber pNum)
+int search(PageNumber pNum)
 {
-	int framepos = -1
-	struct buffer *temp;
+	int framepos = -1;
+	Buffer *temp;
 	temp = start;
 	while (temp != NULL)
 	{
-		if(temp->pageNum = pNum) //if the page is found
+		if((temp->ph).pageNum = pNum) //if the page is found
 		{
-			framepos = temp->pos; //store it
+			framepos = (temp->ph).pageNum; //store it // get back to it to check POS
 			break;
 		}
 		temp = temp->next;
@@ -64,6 +66,14 @@ int main()
 
   	a = initBufferPool(bm, "testbuffer.bin", 3, RS_FIFO, NULL);
   	printf("RC: %d Buffer Pool Initialization \n",a);
+
+  	printf("%s Page File\n", bm->pageFile);
+  	printf("%d Num Pages\n", bm->numPages);
+  	printf("%i strategy\n", bm->strategy);
+  	//printf("%d mgmtData\n", (*(SM_FileHandle *)bm->mgmtData).curPagePos);
+  	//printf("%d mgmtData\n", ((SM_FileHandle *)bm->mgmtData)->curPagePos);
+
+  	pinPage(bm, h, 0);
 }
 
 // Buffer Manager Interface Pool Handling
@@ -79,8 +89,8 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     {
         return RC_FILE_HANDLE_NOT_INIT;
     }
-
-    int ret = openPageFile(pageFileName,fh);
+    printf("File Name: %s\n", pageFileName);
+    int ret = openPageFile(pageFileName, fh);
     if(ret == RC_FILE_NOT_FOUND)
 		return RC_FILE_NOT_FOUND;
 
@@ -88,6 +98,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     bm->numPages = numPages;
     bm->strategy = strategy;
     bm->mgmtData = fh;
+    printf("%d curPagePos\n", fh->curPagePos);
 
     return RC_OK;
 }
@@ -109,8 +120,15 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 }
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page);
 RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
-RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, 
-	    const PageNumber pageNum);
+
+RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
+{
+	page->data = (char *) malloc(PAGE_SIZE);
+	int a = readBlock(pageNum, (SM_FileHandle *)bm->mgmtData, page->data);
+	printf("RC: %d read block\n", a);
+
+	return RC_OK;
+}
 
 // Statistics Interface
 PageNumber *getFrameContents (BM_BufferPool *const bm);
