@@ -10,10 +10,11 @@
 // defining the buffer
 struct buffer
 {
-	int pos; //position of the page frame
-	int pageNum; //page number
+	//int pos; //position of the page frame
+	//int pageNum; //page number
+	struct BM_PageHandle ph; 
 	bool dirty; //dirty page or not ?
-	char *data; //data of the page
+	//char *data; //data of the page
 	int count; //general counter to count how old of the page
 	struct buffer *next; // pointer to the next buffer
 } start = NULL;
