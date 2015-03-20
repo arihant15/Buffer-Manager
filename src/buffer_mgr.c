@@ -12,7 +12,7 @@ typedef struct Buffer
 {
 	//int pos; //position of the page frame
 	//int pageNum; //page number
-	BM_PageHandle ph;
+	BM_PageHandle *ph;
 	bool dirty; //dirty page or not ?
 	//char *data; //data of the page
 	int count; //general counter to count how old of the page
@@ -43,9 +43,9 @@ int search(PageNumber pNum)
 	temp = start;
 	while (temp != NULL)
 	{
-		if((temp->ph).pageNum = pNum) //if the page is found
+		if((temp->ph)->pageNum = pNum) //if the page is found
 		{
-			framepos = (temp->ph).pageNum; //store it // get back to it to check POS
+			framepos = (temp->ph)->pageNum; //store it // get back to it to check POS
 			break;
 		}
 		temp = temp->next;
@@ -123,10 +123,15 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
+	start = (Buffer *)malloc(sizeof(Buffer));
+	page->pageNum = 0;
 	page->data = (char *) malloc(PAGE_SIZE);
 	int a = readBlock(pageNum, (SM_FileHandle *)bm->mgmtData, page->data);
 	printf("RC: %d read block\n", a);
-
+	start->ph = page;
+	start->dirty = 0;
+	start->count = 1;
+	start->next = NULL;
 	return RC_OK;
 }
 
