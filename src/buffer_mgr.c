@@ -20,6 +20,7 @@ typedef struct Buffer
 } Buffer;
 
 Buffer *start = NULL;
+Buffer *current = NULL;
 
 //function to calculate and return the length of the buffer pool
 int lengthofPool()
@@ -86,16 +87,20 @@ int emptyBufferFrame(BM_BufferPool *bm)
 	temp = start;
 	while (temp != NULL)
 	{
+		printf("%d (temp->ph)->pageNum\n", (temp->ph)->pageNum);
 		if((temp->ph)->pageNum != flag) //if the page is found
 		{
+			printf("%d Flag\n", flag);
 			return flag; //store it // get back to it to check POS
 			break;
 		}
-		else
-			flag = flag + 1;
+		
+		flag = flag + 1;
 		temp = temp->next;
 	}
 
+	printf("%d Flag\n", flag);
+	printf("%d bm->numPages\n", bm->numPages);
 	if(flag < bm->numPages)
 		return flag;
 	else
@@ -123,7 +128,7 @@ int main()
   	//printf("%d mgmtData\n", ((SM_FileHandle *)bm->mgmtData)->curPagePos);
   	for(i = 0; i < 3; i++)
   	{
-  		a = pinPage(bm, h, 0);
+  		a = pinPage(bm, h, i);
   		printf("RC: %d Pin Page \n",a);
   	}
 }
@@ -143,6 +148,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     }
 
     int ret = openPageFile(pageFileName, fh);
+    ensureCapacity(10,fh);
     if(ret == RC_FILE_NOT_FOUND)
 		return RC_FILE_NOT_FOUND;
 
@@ -174,9 +180,9 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
-	//printf("%d Length of Buffer\n", lengthofPool());
+	printf("%d Length of Buffer\n", lengthofPool());
 	//printf("%d Buffer Pool length\n", bm->numPages);
-	//printf("%d Page Number from storage_mgr\n", pageNum);
+	printf("%d Page Number from storage_mgr\n", pageNum);
 	//printf("%d Search value\n", searchPos(pageNum));
 	int bufferPagePos = searchPos(pageNum);
 	if( bufferPagePos == -1)
@@ -191,14 +197,27 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			//printf("RC: %d read block\n", a);
 			if(a == RC_OK)
 			{
-				page->pageNum = emptyFrame;
 				updateCounter();
+				page->pageNum = emptyFrame;
 				temp->ph = page;
 				temp->dirty = 0;
 				temp->count = 1;
 				temp->stroage_mgr_pageNum = pageNum;
 				temp->next = NULL;
-				start = temp;
+				if(lengthofPool() == 0)
+				{
+					start = temp;
+					current = start;
+					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
+				}
+				else
+				{
+					printf("%d (start->ph)->pageNum\n", (start->ph)->pageNum);
+					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
+					current->next = temp;
+					current = temp;
+					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
+				}
 			}
 			else
 			{
