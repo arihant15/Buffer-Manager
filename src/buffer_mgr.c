@@ -36,14 +36,14 @@ int lengthofPool()
 }
 
 //function returns the page frame number 
-int search(PageNumber pNum)
+int searchPos(PageNumber pNum)
 {
 	int framepos = -1;
 	Buffer *temp;
 	temp = start;
 	while (temp != NULL)
 	{
-		if(temp->stroage_mgr_pageNum = pNum) //if the page is found
+		if(temp->stroage_mgr_pageNum == pNum) //if the page is found
 		{
 			framepos = (temp->ph)->pageNum; //store it // get back to it to check POS
 			break;
@@ -73,7 +73,10 @@ int main()
   	//printf("%d mgmtData\n", (*(SM_FileHandle *)bm->mgmtData).curPagePos);
   	//printf("%d mgmtData\n", ((SM_FileHandle *)bm->mgmtData)->curPagePos);
   	for(i = 0; i < 3; i++)
-  		pinPage(bm, h, 0);
+  	{
+  		a = pinPage(bm, h, i);
+  		printf("RC: %d Pin Page \n",a);
+  	}
 }
 
 // Buffer Manager Interface Pool Handling
@@ -122,10 +125,12 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
-	printf("%d Length of Buffer\n", lengthofPool());
-	printf("%d Page Number from storage_mgr\n", pageNum);
-	printf("%d Search value\n", search(pageNum));
-	if(search(pageNum) == -1)
+	//printf("%d Length of Buffer\n", lengthofPool());
+	//printf("%d Buffer Pool length\n", bm->numPages);
+	//printf("%d Page Number from storage_mgr\n", pageNum);
+	//printf("%d Search value\n", searchPos(pageNum));
+	int bufferPagePos = searchPos(pageNum);
+	if( bufferPagePos == -1)
 	{
 		if(lengthofPool() == 0)
 		{
@@ -134,26 +139,43 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			page->data = (char *) malloc(PAGE_SIZE);
 			int a = readBlock(pageNum, (SM_FileHandle *)bm->mgmtData, page->data);
 			//printf("RC: %d read block\n", a);
-			temp->ph = page;
-			temp->dirty = 0;
-			temp->count = 1;
-			temp->stroage_mgr_pageNum = pageNum;
-			temp->next = NULL;
-			start = temp;
+			if(a == RC_OK)
+			{
+				temp->ph = page;
+				temp->dirty = 0;
+				temp->count = 1;
+				temp->stroage_mgr_pageNum = pageNum;
+				temp->next = NULL;
+				start = temp;
+			}
+			else
+			{
+				printf("Pin Page failed due to: %d \n", a);
+				return RC_BUFFER_POOL_PINPAGE_ERROR;
+			}
+			
 		}
-		else if (lengthofPool > 0 && lengthofPool < bm->numPages)
+		else if (lengthofPool() > 0 && lengthofPool() < bm->numPages)
 		{
 			Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
 			page->pageNum = 0;
 			page->data = (char *) malloc(PAGE_SIZE);
 			int a = readBlock(pageNum, (SM_FileHandle *)bm->mgmtData, page->data);
 			//printf("RC: %d read block\n", a);
-			temp->ph = page;
-			temp->dirty = 0;
-			temp->count = 1;
-			start->stroage_mgr_pageNum = pageNum;
-			temp->next = NULL;
-			start->next = temp;
+			if(a == RC_OK)
+			{
+				temp->ph = page;
+				temp->dirty = 0;
+				temp->count = 1;
+				temp->stroage_mgr_pageNum = pageNum;
+				temp->next = NULL;
+				start = temp;
+			}
+			else
+			{
+				printf("Pin Page failed due to: %d \n", a);
+				return RC_BUFFER_POOL_PINPAGE_ERROR;
+			}
 		}
 		else
 		{
@@ -164,7 +186,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	}
 	else
 	{
-		printf("Page already present\n");
+		printf("Page already present @ Buffer location: %d\n", bufferPagePos);
+		return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
 	}
 	
 	return RC_OK;
