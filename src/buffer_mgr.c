@@ -72,7 +72,7 @@ void resetCounter(int framepos)
 	{
 		if((temp->ph)->pageNum == framepos) //if the page is found
 		{
-			(temp->ph)->pageNum = 0; //store it // get back to it to check POS
+			temp->count = 1; //store it // get back to it to check POS
 			break;
 		}
 		temp = temp->next;
