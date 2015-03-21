@@ -10,7 +10,7 @@
 // defining the buffer
 typedef struct Buffer
 {
-	//int pos; //position of the page frame
+	int buffer_mgr_pageNum; //position of the page frame
 	int stroage_mgr_pageNum; //page number
 	BM_PageHandle *ph;
 	bool dirty; //dirty page or not ?
@@ -26,13 +26,15 @@ Buffer *current = NULL;
 int lengthofPool()
 {
 	int count = 0;
-	Buffer *root;
-	root = start; //make root equals the first element in the buffer pool
-	while(root != NULL)
+	Buffer *temp;
+	temp = start; //make root equals the first element in the buffer pool
+
+	while(temp != NULL)
 	{
 		count++;
-		root = root->next; //next
+		temp = temp->next; //next
 	}
+
 	return count;
 }
 
@@ -46,7 +48,7 @@ int searchPos(PageNumber pNum)
 	{
 		if(temp->stroage_mgr_pageNum == pNum) //if the page is found
 		{
-			framepos = (temp->ph)->pageNum; //store it // get back to it to check POS
+			framepos = temp->buffer_mgr_pageNum; //store it // get back to it to check POS
 			break;
 		}
 		temp = temp->next;
@@ -56,12 +58,13 @@ int searchPos(PageNumber pNum)
 
 void updateCounter()
 {
-	Buffer *root;
-	root = start; //make root equals the first element in the buffer pool
-	while(root != NULL)
+	Buffer *temp;
+	temp = start; //make temp equals the first element in the buffer pool
+
+	while(temp != NULL)
 	{
-		root->count = root->count + 1;
-		root = root->next; //next
+		temp->count = temp->count + 1;
+		temp = temp->next; //next
 	}
 }
 
@@ -69,13 +72,15 @@ void resetCounter(int framepos)
 {
 	Buffer *temp;
 	temp = start;
+
 	while (temp != NULL)
 	{
-		if((temp->ph)->pageNum == framepos) //if the page is found
+		if(temp->buffer_mgr_pageNum == framepos) //if the page is found
 		{
 			temp->count = 1; //store it // get back to it to check POS
 			break;
 		}
+
 		temp = temp->next;
 	}
 }
@@ -87,10 +92,8 @@ int emptyBufferFrame(BM_BufferPool *bm)
 	temp = start;
 	while (temp != NULL)
 	{
-		printf("%d (temp->ph)->pageNum\n", (temp->ph)->pageNum);
-		if((temp->ph)->pageNum != flag) //if the page is found
+		if(temp->buffer_mgr_pageNum != flag) //if the page is found
 		{
-			printf("%d Flag\n", flag);
 			return flag; //store it // get back to it to check POS
 			break;
 		}
@@ -99,8 +102,6 @@ int emptyBufferFrame(BM_BufferPool *bm)
 		temp = temp->next;
 	}
 
-	printf("%d Flag\n", flag);
-	printf("%d bm->numPages\n", bm->numPages);
 	if(flag < bm->numPages)
 		return flag;
 	else
@@ -126,7 +127,7 @@ int main()
   	//printf("%i strategy\n", bm->strategy);
   	//printf("%d mgmtData\n", (*(SM_FileHandle *)bm->mgmtData).curPagePos);
   	//printf("%d mgmtData\n", ((SM_FileHandle *)bm->mgmtData)->curPagePos);
-  	for(i = 0; i < 3; i++)
+  	for(i = 0; i < 5; i++)
   	{
   		a = pinPage(bm, h, i);
   		printf("RC: %d Pin Page \n",a);
@@ -180,9 +181,9 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
-	printf("%d Length of Buffer\n", lengthofPool());
+	//printf("%d Length of Buffer\n", lengthofPool());
 	//printf("%d Buffer Pool length\n", bm->numPages);
-	printf("%d Page Number from storage_mgr\n", pageNum);
+	//printf("%d Page Number from storage_mgr\n", pageNum);
 	//printf("%d Search value\n", searchPos(pageNum));
 	int bufferPagePos = searchPos(pageNum);
 	if( bufferPagePos == -1)
@@ -198,7 +199,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			if(a == RC_OK)
 			{
 				updateCounter();
-				page->pageNum = emptyFrame;
+				//page->pageNum = emptyFrame;
+				temp->buffer_mgr_pageNum = emptyFrame;
 				temp->ph = page;
 				temp->dirty = 0;
 				temp->count = 1;
@@ -206,17 +208,15 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 				temp->next = NULL;
 				if(lengthofPool() == 0)
 				{
+					//start = (Buffer *)malloc(sizeof(Buffer));
+					//current = (Buffer *)malloc(sizeof(Buffer));
 					start = temp;
 					current = start;
-					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
 				}
 				else
 				{
-					printf("%d (start->ph)->pageNum\n", (start->ph)->pageNum);
-					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
 					current->next = temp;
 					current = temp;
-					printf("%d (current->ph)->pageNum\n", (current->ph)->pageNum);
 				}
 			}
 			else
