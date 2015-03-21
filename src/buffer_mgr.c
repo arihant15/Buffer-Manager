@@ -208,14 +208,33 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		}
 		else
 		{
-			//FIFO
-			//LRU
 			printf("Need to implement LRU or FIFO or CLOCK\n");
+			switch(bm->strategy)
+			{
+				case RS_FIFO:
+					//Call FIFO
+					printf("FIFO\n");
+					break;
+
+				case RS_LRU:
+					//Call LRU
+					printf("LRU\n");
+					break;
+
+				default:
+					printf("Buffer strategy not implemented\n");
+
+			}
+
 		}
 	}
 	else
 	{
-		resetCounter(bufferPagePos);
+		if(bm->strategy == RS_LRU)
+		{
+			updateCounter();
+			resetCounter(bufferPagePos);
+		}
 		printf("Page already present @ Buffer location: %d\n", bufferPagePos);
 		return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
 	}
