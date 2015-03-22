@@ -16,6 +16,7 @@ typedef struct Buffer
 	bool dirty; //dirty page or not ?
 	//char *data; //data of the page
 	int count; //general counter to count how old of the page
+	int fixcounts;
 	struct Buffer *next; // pointer to the next buffer
 } Buffer;
 
@@ -27,6 +28,7 @@ typedef struct BM_BufferMgmt
 	SM_FileHandle *f;
 	Buffer *start;
 	Buffer *current;
+	int emptyFrame;
 }BM_BufferMgmt;
 
 //function to calculate and return the length of the buffer pool
@@ -46,21 +48,22 @@ int lengthofPool(BM_BufferMgmt *mgmt)
 }
 
 //function returns the page frame number 
-int searchPos(BM_BufferMgmt *mgmt, PageNumber pNum)
+Buffer *searchPos(BM_BufferMgmt *mgmt, PageNumber pNum)
 {
-	int framepos = -1;
-	Buffer *temp;
-	temp = mgmt->start;
-	while (temp != NULL)
+	//int framepos = -1;
+	Buffer *search_buffer;	
+	search_buffer = mgmt->start;
+	while (search_buffer != NULL)
 	{
-		if(temp->stroage_mgr_pageNum == pNum) //if the page is found
+		if(search_buffer->stroage_mgr_pageNum == pNum) //if the page is found
 		{
-			framepos = temp->buffer_mgr_pageNum; //store it // get back to it to check POS
+			//framepos = search_buffer->buffer_mgr_pageNum; //store it // get back to it to check POS
 			break;
 		}
-		temp = temp->next;
+		search_buffer = search_buffer->next;
 	}
-	return framepos;// return
+	
+	return search_buffer;
 }
 
 void updateCounter(BM_BufferMgmt *mgmt)
@@ -72,6 +75,22 @@ void updateCounter(BM_BufferMgmt *mgmt)
 	{
 		temp->count = temp->count + 1;
 		temp = temp->next; //next
+	}
+}
+
+void updateFixCounts(BM_BufferMgmt *mgmt, PageNumber pNum)
+{
+	Buffer *temp;
+	temp = mgmt->start; //make temp equals the first element in the buffer pool
+
+	while(temp != NULL)
+	{
+		if(temp->stroage_mgr_pageNum == pNum) //if the page is found
+		{
+			temp->fixcounts += 1; //store it // get back to it to check POS
+			break;
+		}
+		temp = temp->next;
 	}
 }
 
@@ -138,7 +157,28 @@ int main()
   	{
   		a = pinPage(bm, h, i);
   		printf("RC: %d Pin Page \n",a);
+  		sprintf(h->data, "%s-%i", "Page", h->pageNum);
+  		//printf("h->data ---------> %s\n", h->data);
+  		//printf("h->pageNum --------> %i\n", h->pageNum);
+  		a = unpinPage(bm,h);
+  		printf("RC: %d UnPin Page \n",a);
   	}
+  	printBuffer(bm);
+}
+
+void printBuffer(BM_BufferPool *bm)
+{
+	Buffer *temp;
+	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	while (temp != NULL)
+	{
+		printf("%i temp->buffer_mgr_pageNum \n", temp->buffer_mgr_pageNum);
+		printf("%i temp->stroage_mgr_pageNum \n", temp->stroage_mgr_pageNum);
+		printf("%i temp->count \n", temp->count);
+		printf("%i temp->fixcounts \n", temp->fixcounts);
+		printf("%i temp->dirty \n", temp->dirty);
+		temp = temp->next;
+	}
 }
 
 // Buffer Manager Interface Pool Handling
@@ -166,6 +206,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     mgmt->f = fh;
     mgmt->start = NULL;
     mgmt->current = NULL;
+    mgmt->emptyFrame = 0;
 
     bm->pageFile = pageFileName;
     bm->numPages = numPages;
@@ -193,7 +234,38 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
-
+	Buffer *bufferPagePos = searchPos(bm->mgmtData, page->pageNum);
+	
+	//printf("%i bufferPagePos->buffer_mgr_pageNum \n", bufferPagePos->buffer_mgr_pageNum);
+	//printf("%i bufferPagePos->stroage_mgr_pageNum \n", bufferPagePos->stroage_mgr_pageNum);
+	//printf("%i bufferPagePos->count \n", bufferPagePos->count);
+	//printf("%i bufferPagePos->fixcounts \n", bufferPagePos->fixcounts);
+	//printf("%i bufferPagePos->dirty \n", bufferPagePos->dirty);
+	printf("%i lengthofPool(bm->mgmtData)\n", lengthofPool(bm->mgmtData));
+	
+	bufferPagePos->fixcounts -= 1;
+	if(bufferPagePos->fixcounts == 0)
+	{
+		if(bufferPagePos->dirty)
+		{
+			//Page dirty need to write back to disk
+		}
+		else
+		{
+			printf("Page Not dirty\n");
+			//free(bufferPagePos);
+			if(lengthofPool(bm->mgmtData) == 1)
+			{
+				bufferPagePos = NULL;
+				((BM_BufferMgmt *)bm->mgmtData)->start = NULL;
+			}
+			bufferPagePos = NULL;
+			printf("%i bufferPagePos\n", bufferPagePos);
+			//printf("%i bufferPagePos->buffer_mgr_pageNum \n", bufferPagePos->buffer_mgr_pageNum);
+			//printBuffer(bm);
+			return RC_OK;
+		}
+	}
 }
 
 RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page);
@@ -204,8 +276,12 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	//printf("%d Buffer Pool length\n", bm->numPages);
 	//printf("%d Page Number from storage_mgr\n", pageNum);
 	//printf("%d Search value\n", searchPos(pageNum));
-	int bufferPagePos = searchPos(bm->mgmtData, pageNum);
-	if( bufferPagePos == -1)
+	//Buffer *bufferPagePos = (Buffer *)malloc(sizeof(Buffer));
+
+	Buffer *bufferPagePos = searchPos(bm->mgmtData, pageNum);
+	//printf("%i bufferPagePos\n", bufferPagePos);
+	//printf("%i ((BM_BufferMgmt *)bm->mgmtData)->start\n", ((BM_BufferMgmt *)bm->mgmtData)->start);
+	if( bufferPagePos != ((BM_BufferMgmt *)bm->mgmtData)->start || bufferPagePos == 0)
 	{
 		int emptyFrame = emptyBufferFrame(bm);
 		printf("emptyBufferFrame @ %d\n", emptyFrame);
@@ -218,11 +294,12 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			if(a == RC_OK)
 			{
 				updateCounter(bm->mgmtData);
-				//page->pageNum = emptyFrame;
+				page->pageNum = emptyFrame;
 				temp->buffer_mgr_pageNum = emptyFrame;
 				temp->ph = page;
 				temp->dirty = 0;
 				temp->count = 1;
+				temp->fixcounts = 1;
 				temp->stroage_mgr_pageNum = pageNum;
 				temp->next = NULL;
 				if(lengthofPool(bm->mgmtData) == 0)
@@ -261,17 +338,18 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					printf("Buffer strategy not implemented\n");
 
 			}
-
 		}
 	}
 	else
 	{
+		bufferPagePos->fixcounts += 1;
+		//updateFixCounts(bm->mgmtData, pageNum);
 		if(bm->strategy == RS_LRU)
 		{
 			updateCounter(bm->mgmtData);
 			resetCounter(bm->mgmtData, bufferPagePos);
 		}
-		printf("Page already present @ Buffer location: %d\n", bufferPagePos);
+		printf("Page already present @ Buffer location: %d\n", bufferPagePos->buffer_mgr_pageNum);
 		return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
 	}
 	
