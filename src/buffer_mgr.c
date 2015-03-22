@@ -135,7 +135,6 @@ int emptyBufferFrame(BM_BufferPool *bm)
 		return -10;
 }
 
-
 char *testName;
 int main()
 {
@@ -369,7 +368,23 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 }
 
 // Statistics Interface
-PageNumber *getFrameContents (BM_BufferPool *const bm);
+PageNumber *getFrameContents (BM_BufferPool *const bm)
+{
+int i=0;
+PageNumber *pn;//array that should be return
+Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+//Buffer *temp;
+
+temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	while (temp!=NULL)//going to each node
+	{
+	pn[i]=temp->storage_mgr_pagenum;//checking if page handle has a value
+	i++;
+	temp=temp->next;
+	}
+return *pn;
+}
+
 bool *getDirtyFlags (BM_BufferPool *const bm);
 int *getFixCounts (BM_BufferPool *const bm);
 int getNumReadIO (BM_BufferPool *const bm);
