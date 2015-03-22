@@ -457,7 +457,38 @@ PageNumber *getFrameContents (BM_BufferPool *const bm)
 	return pn;
 }
 
-bool *getDirtyFlags (BM_BufferPool *const bm);
-int *getFixCounts (BM_BufferPool *const bm);
+bool *getDirtyFlags (BM_BufferPool *const bm)
+{
+	int i=0;
+	bool *dirt;//array that should be return
+	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+
+	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	while (temp!=NULL)//going to each node
+	{
+		dirt[i]=temp->dirty;//storing the dirty values in the array
+		i++;
+		temp=temp->next;
+	}
+
+	return dirt;
+}
+
+int *getFixCounts (BM_BufferPool *const bm)
+{
+	int i=0;
+	int *fix;//array that should be return
+	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+
+	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	while (temp!=NULL)//going to each node
+	{
+		fix[i]=temp->fixcounts;//storing the fix values in the array
+		i++;
+		temp=temp->next;
+	}
+	return fix;
+}
+
 int getNumReadIO (BM_BufferPool *const bm);
 int getNumWriteIO (BM_BufferPool *const bm);
