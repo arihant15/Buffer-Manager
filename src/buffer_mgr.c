@@ -468,5 +468,11 @@ temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
 return fix;
 }
 
-int getNumReadIO (BM_BufferPool *const bm);
-int getNumWriteIO (BM_BufferPool *const bm);
+int getNumReadIO (BM_BufferPool *const bm)
+{
+
+}
+int getNumWriteIO (BM_BufferPool *const bm)
+{
+
+}
