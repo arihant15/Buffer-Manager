@@ -185,6 +185,10 @@ int main()
   	else
   		printf(" %i", NO_PAGE);
   	printf("\n");
+	bool *test;
+	test = getDirtyFlags(bm);
+	for(i=0;i<3;i++)
+	printf(" %d\n ",test[i]);
   	printBuffer(bm);
 }
 
@@ -459,18 +463,24 @@ PageNumber *getFrameContents (BM_BufferPool *const bm)
 
 bool *getDirtyFlags (BM_BufferPool *const bm)
 {
-	int i=0;
+	int i=0,n;
 	bool *dirt;//array that should be return
 	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
-
+	n=lengthofpool(bm);
+	printf("  %d ",n);
 	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	dirt = (int *)malloc(sizeof(int)*n);
+	
 	while (temp!=NULL)//going to each node
-	{
+	{	
 		dirt[i]=temp->dirty;//storing the dirty values in the array
 		i++;
 		temp=temp->next;
 	}
-
+	while(i<n)
+	{
+	dirt[i]=FALSE;
+	}
 	return dirt;
 }
 
