@@ -498,6 +498,7 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 		
 		if (a == RC_OK)
 		{
+			bufferPagePos->dirty = 0;
 			((BM_BufferMgmt *)bm->mgmtData)->numWriteIO += 1;
 			return RC_OK;
 		}
