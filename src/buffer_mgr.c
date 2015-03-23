@@ -137,6 +137,58 @@ int emptyBufferFrame(BM_BufferPool *bm)
 		return -10;
 }
 
+Buffer *searchCnt(BM_BufferMgmt *mgmt)
+{
+	int max = 0;
+
+	Buffer *search_buffer = mgmt->start;
+	Buffer *temp = mgmt->start;
+
+	while(search_buffer != NULL)
+	{
+		if(search_buffer->count > max) //
+		{
+			max = search_buffer->count;
+			printf(" max %d \n", max);
+			temp = search_buffer;
+		}
+		search_buffer = search_buffer->next;
+	}
+
+	return temp;
+}
+
+void LRU(BM_BufferPool *bm, BM_PageHandle *page)
+{
+	int a;
+	Buffer *temp = searchCnt(bm->mgmtData);	
+	if(temp->dirty == 1)
+	{
+		a = forcePage(bm, page);
+	}
+	//printf("%d after force : temp->count \n", temp->count);
+	updateCounter(bm->mgmtData);
+	printf("%d after update : temp->count \n", temp->count);
+
+	temp->ph = page;
+	temp->storage_mgr_pageNum = page->pageNum;
+
+	temp->dirty = 0; //dirty page or not ?
+
+	(temp->ph)->data = page->data; //data of the page
+	temp->count = 1;
+
+	printf("-------------------------\n");
+	printf("Inside LRU\n");
+	printf("-------------------------\n");
+	printf("%i temp->buffer_mgr_pageNum \n", temp->buffer_mgr_pageNum);
+	printf("%i temp->stroage_mgr_pageNum \n", temp->storage_mgr_pageNum);
+	printf("%d temp->count \n", temp->count);
+	printf("%i temp->fixcounts \n", temp->fixcounts);
+	printf("%i temp->dirty \n", temp->dirty);
+	printf("-------------------------\n");	
+}
+
 
 char *testName;
 int main()
@@ -443,7 +495,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	Buffer *bufferPagePos = searchPos(bm->mgmtData, pageNum);
 	//printf("%i bufferPagePos\n", bufferPagePos);
 	//printf("%i ((BM_BufferMgmt *)bm->mgmtData)->start\n", ((BM_BufferMgmt *)bm->mgmtData)->start);
-	if( bufferPagePos != ((BM_BufferMgmt *)bm->mgmtData)->start || bufferPagePos == 0)
+	if( bufferPagePos == ((BM_BufferMgmt *)bm->mgmtData)->start || bufferPagePos == 0)
 	{
 		int emptyFrame = emptyBufferFrame(bm);
 		printf("emptyBufferFrame @ %d\n", emptyFrame);
@@ -485,6 +537,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		else
 		{
 			printf("Need to implement LRU or FIFO or CLOCK\n");
+			LRU(bm, page);
+			/*
 			switch(bm->strategy)
 			{
 				case RS_FIFO:
@@ -499,8 +553,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 
 				default:
 					printf("Buffer strategy not implemented\n");
-
 			}
+			*/
 		}
 	}
 	else
