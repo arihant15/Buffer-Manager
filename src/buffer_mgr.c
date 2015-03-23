@@ -468,38 +468,48 @@ bool *getDirtyFlags (BM_BufferPool *const bm)
 	int i=0,n;
 	bool *dirt;//array that should be return
 	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
-	n=lengthofPool(bm->mgmtData);
+	n=bm->numPages;
 	//printf("  %d ",n);
 	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
-	dirt = (int *)malloc(sizeof(int)*n);
-	
-	while (temp!=NULL)//going to each node
-	{	
-		dirt[i]=temp->dirty;//storing the dirty values in the array
-		i++;
-		temp=temp->next;
-	}
+	dirt = (bool *)malloc(sizeof(bool)*n);
 	while(i<n)
 	{
 	dirt[i]=FALSE;
+	i++;
 	}
+	while (temp!=NULL)//going to each node
+	{	
+		if(temp->dirty)
+		dirt[i]=TRUE;//storing the dirty values in the array
+		i++;
+		temp=temp->next;
+	}	
+	while(i<n)
+	dirt[i]=FALSE;
 	return dirt;
 }
 
 int *getFixCounts (BM_BufferPool *const bm)
 {
-	int i=0;
-	int *fix;//array that should be return
-	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+ int i=0,n;
+        bool *fix;//array that should be return
+        Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+        n=lengthofPool(bm->mgmtData);
+        //printf("  %d ",n);
+        temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+        fix = (int *)malloc(sizeof(int)*n);
 
-	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
-	while (temp!=NULL)//going to each node
-	{
-		fix[i]=temp->fixcounts;//storing the fix values in the array
-		i++;
-		temp=temp->next;
-	}
-	return fix;
+        while (temp!=NULL)//going to each node
+        {
+                fix[i]=temp->fixcounts;//storing the dirty values in the array
+                i++;
+                temp=temp->next;
+        }
+        while(i<n)
+        {
+        fix[i]=0;
+        }
+        return fix;
 }
 
 int getNumReadIO (BM_BufferPool *const bm)
