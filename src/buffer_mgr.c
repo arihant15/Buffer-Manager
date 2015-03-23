@@ -297,7 +297,6 @@ void printBuffer(BM_BufferPool *bm)
 RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const int numPages, ReplacementStrategy strategy, void *stratData)
 {
 	//if(bm->mgmtData != NULL)
-	//	return RC_BUFFER_POOL_ALREADY_INIT;
 
 	SM_FileHandle *fh;
 	fh=(SM_FileHandle *)malloc(sizeof(SM_FileHandle));
@@ -327,6 +326,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     bm->strategy = strategy;
     bm->mgmtData = mgmt;
 
+	
     return RC_OK;
 }
 
@@ -334,39 +334,50 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 {
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
+	//lfree(((BM_BufferMgmt *)bm->mgmtData)->start);
+	free(bm->mgmtData);
+	
+	//free(bm);
 
+	printf("\n=================== SHUTDOWN========================\n");
+
+/*
 	int a;
 	Buffer *temp;
 	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
-
+	printf("\n=================== SHUTDOWN========================\n");
 	if(temp == NULL)
 	{
 //		free(((BM_BufferMgmt *)bm->mgmtData));
+		
 		free(bm->mgmtData);
 	//	bm->mgmtData = NULL;
-		free(bm);
+		//bm->pageFile = NULL;
+		//free(bm);
 		return RC_OK;
 	}
 		
 		//return RC_BUFFER_POOL_EMPTY;
-
+	
 	while (temp != NULL)
 	{
 		temp->fixcounts = 0;
 		temp = temp->next;
 	}
-	free(temp);
+	//free(temp);
 
 	a = forceFlushPool(bm);
-
+	Buffer *tmp = ((BM_BufferMgmt *)bm->mgmtData)->start;
   	while (((BM_BufferMgmt *)bm->mgmtData)->start != NULL)
 	{
-		free(((BM_BufferMgmt *)bm->mgmtData)->start);
+		tmp = ((BM_BufferMgmt *)bm->mgmtData)->start;
 		((BM_BufferMgmt *)bm->mgmtData)->start = ((BM_BufferMgmt *)bm->mgmtData)->start->next;
+		//free(((BM_BufferMgmt *)bm->mgmtData)->start);
+		free(tmp);
 	}
 
 	free(((BM_BufferMgmt *)bm->mgmtData));
-	free(bm);
+	//free(bm);*/
 
 	return RC_OK;
 
@@ -462,6 +473,7 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 				((BM_BufferMgmt *)bm->mgmtData)->start = NULL;
 			}
 			free(page->data);
+			page->data = NULL;
 			printf("\n RETURNING UNPIN!! ==========");
 			return RC_OK;
 		}
@@ -534,10 +546,10 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		int emptyFrame = emptyBufferFrame(bm);
 		printf("emptyBufferFrame @ %d\n", emptyFrame);		//
 		page->data = (char *) malloc(PAGE_SIZE);
-		printf("\n Before Read ========== %s data", page->data);		
+		//printf("\n Before Read ========== %s data", page->data);		
 		a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, page->data);
 		page->pageNum = pageNum;
-		printf(" After Read Hiiiiiiiiiiiiiiiiiiiii inside pinpage");
+		//printf(" After Read Hiiiiiiiiiiiiiiiiiiiii inside pinpage");
 		if (emptyFrame != -10)
 		{
 			Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
@@ -563,6 +575,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					((BM_BufferMgmt *)bm->mgmtData)->current->next = temp;
 					((BM_BufferMgmt *)bm->mgmtData)->current = temp;
 				}
+				free(temp);
 			}
 			else
 			{
