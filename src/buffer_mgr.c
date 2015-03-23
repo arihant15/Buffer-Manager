@@ -168,7 +168,7 @@ int main()
   		printf("RC: %d Mark Dirty \n",a);
   		//a = forceFlushPool(bm);
   		//printf("RC: %d Force Flush Pool \n",a);
-  		a = unpinPage(bm,h);
+  	//	a = unpinPage(bm,h);
   		printf("RC: %d UnPin Page \n",a);
   	}
   	a = forcePage(bm, h);
@@ -187,8 +187,10 @@ int main()
   	printf("\n");
 	bool *test;
 	test = getDirtyFlags(bm);
+	printf("Dirty pool :");
 	for(i=0;i<3;i++)
-	printf(" %d\n ",test[i]);
+	printf(" %d ",test[i]);
+	printf("\n");
   	printBuffer(bm);
 }
 
@@ -466,8 +468,8 @@ bool *getDirtyFlags (BM_BufferPool *const bm)
 	int i=0,n;
 	bool *dirt;//array that should be return
 	Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
-	n=lengthofpool(bm);
-	printf("  %d ",n);
+	n=lengthofPool(bm->mgmtData);
+	//printf("  %d ",n);
 	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	dirt = (int *)malloc(sizeof(int)*n);
 	
