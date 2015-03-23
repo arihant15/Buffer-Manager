@@ -28,6 +28,8 @@ typedef struct BM_BufferMgmt
 	SM_FileHandle *f;
 	Buffer *start;
 	Buffer *current;
+	int numReadIO;
+	int numWriteIO;
 }BM_BufferMgmt;
 
 //function to calculate and return the length of the buffer pool
@@ -168,7 +170,7 @@ int main()
   		printf("RC: %d Mark Dirty \n",a);
   		//a = forceFlushPool(bm);
   		//printf("RC: %d Force Flush Pool \n",a);
-  	//	a = unpinPage(bm,h);
+  		a = unpinPage(bm,h);
   		printf("RC: %d UnPin Page \n",a);
   	}
   	a = forcePage(bm, h);
@@ -185,12 +187,6 @@ int main()
   	else
   		printf(" %i", NO_PAGE);
   	printf("\n");
-	bool *test;
-	test = getDirtyFlags(bm);
-	printf("Dirty pool :");
-	for(i=0;i<3;i++)
-	printf(" %d ",test[i]);
-	printf("\n");
   	printBuffer(bm);
 }
 
@@ -238,6 +234,8 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     mgmt->f = fh;
     mgmt->start = NULL;
     mgmt->current = NULL;
+    mgmt->numReadIO = 0;
+    mgmt->numWriteIO = 0;
 
     bm->pageFile = pageFileName;
     bm->numPages = numPages;
@@ -361,7 +359,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	//printf("%d Page Number from storage_mgr\n", pageNum);
 	//printf("%d Search value\n", searchPos(pageNum));
 	//Buffer *bufferPagePos = (Buffer *)malloc(sizeof(Buffer));
-
+	int a;
 	Buffer *bufferPagePos = searchPos(bm->mgmtData, pageNum);
 	//printf("%i bufferPagePos\n", bufferPagePos);
 	//printf("%i ((BM_BufferMgmt *)bm->mgmtData)->start\n", ((BM_BufferMgmt *)bm->mgmtData)->start);
@@ -369,16 +367,16 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	{
 		int emptyFrame = emptyBufferFrame(bm);
 		printf("emptyBufferFrame @ %d\n", emptyFrame);
+		page->data = (char *) malloc(PAGE_SIZE);
+		a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, page->data);
+		page->pageNum = pageNum;
 		if (emptyFrame != -10)
 		{
 			Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
-			page->data = (char *) malloc(PAGE_SIZE);
-			int a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, page->data);
 			//printf("RC: %d read block\n", a);
 			if(a == RC_OK)
 			{
 				updateCounter(bm->mgmtData);
-				page->pageNum = pageNum;
 				temp->buffer_mgr_pageNum = emptyFrame;
 				temp->ph = page;
 				temp->dirty = 0;
@@ -491,32 +489,26 @@ bool *getDirtyFlags (BM_BufferPool *const bm)
 
 int *getFixCounts (BM_BufferPool *const bm)
 {
- int i=0,n;
-        bool *fix;//array that should be return
-        Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
-        n=lengthofPool(bm->mgmtData);
-        //printf("  %d ",n);
-        temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
-        fix = (int *)malloc(sizeof(int)*n);
+	int i=0,n;
+    bool *fix;//array that should be return
+    Buffer *temp = (Buffer *)malloc(sizeof(Buffer));
+    n=lengthofPool(bm->mgmtData);
+    //printf("  %d ",n);
+    temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+    fix = (int *)malloc(sizeof(int)*n);
 
-        while (temp!=NULL)//going to each node
-        {
-                fix[i]=temp->fixcounts;//storing the dirty values in the array
-                i++;
-                temp=temp->next;
-        }
-        while(i<n)
-        {
-        fix[i]=0;
-        }
-        return fix;
+    while (temp!=NULL)//going to each node
+    {
+        fix[i]=temp->fixcounts;//storing the dirty values in the array
+        i++;
+        temp=temp->next;
+    }
+    while(i<n)
+    {
+    	fix[i]=0;
+    }
+    return fix;
 }
 
-int getNumReadIO (BM_BufferPool *const bm)
-{
-
-}
-int getNumWriteIO (BM_BufferPool *const bm)
-{
-
-}
+int getNumReadIO (BM_BufferPool *const bm);
+int getNumWriteIO (BM_BufferPool *const bm);
