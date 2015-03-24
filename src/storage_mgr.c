@@ -171,7 +171,7 @@ RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage)
 	if(fopen(fHandle->fileName,"r") == NULL)//checking if the file is present or not
 		return RC_FILE_NOT_FOUND;
 
-	if(pageNum >= fHandle->totalNumPages)//checking if its an invalid page number
+	if(pageNum > fHandle->totalNumPages)//checking if its an invalid page number
 		return RC_READ_NON_EXISTING_PAGE;
 
 	fseek(fHandle->mgmtInfo , pageNum*PAGE_SIZE , SEEK_SET);//seeking to a particular block with respect to the page number
@@ -309,11 +309,13 @@ RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage)
 		return RC_WRITE_FAILED;
 	//writes the data
 	//sets all the file handle variables
+	
 	fp = fopen(fHandle->fileName,"r");
 	fseek(fp , (pageNum+1)*PAGE_SIZE , SEEK_SET);
 	fHandle->mgmtInfo = fp;
 	fHandle->curPagePos = (ftell(fHandle->mgmtInfo)/PAGE_SIZE);
-	fHandle->totalNumPages = (ftell(fp)/PAGE_SIZE);
+	//fHandle->totalNumPages = (ftell(fp)/PAGE_SIZE);
+
 	return RC_OK;
 }
         //writes to the current page block
