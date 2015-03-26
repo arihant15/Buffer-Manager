@@ -22,6 +22,7 @@ typedef struct BM_BufferMgmt
 	SM_FileHandle *f;
 	Buffer *start;
 	Buffer *current;
+	Buffer *iterator;
 	int numReadIO;
 	int numWriteIO;
 } BM_BufferMgmt;
@@ -29,13 +30,13 @@ typedef struct BM_BufferMgmt
 int lengthofPool(BM_BufferMgmt *mgmt)
 {
 	int count = 0;
-	Buffer *temp;
-	temp = mgmt->start; //make root equals the first element in the buffer pool
+	//Buffer *temp;
+	mgmt->iterator = mgmt->start; //make root equals the first element in the buffer pool
 
-	while(temp != NULL)
+	while(mgmt->iterator != NULL)
 	{
 		count++;
-		temp = temp->next; //next
+		mgmt->iterator = mgmt->iterator->next; //next
 	}
 
 	return count;
@@ -43,16 +44,17 @@ int lengthofPool(BM_BufferMgmt *mgmt)
 
 Buffer *searchPrevPos(BM_BufferMgmt *mgmt, PageNumber pNum)
 {
-	Buffer *search_buffer = mgmt->start;
+	//Buffer *search_buffer = mgmt->start;
+	mgmt->iterator = mgmt->start;
 	Buffer *temp = NULL;
 
-	while (search_buffer != NULL)
+	while (mgmt->iterator != NULL)
 	{
-		if(search_buffer->storage_mgr_pageNum == pNum)
+		if(mgmt->iterator->storage_mgr_pageNum == pNum)
 			break;
 
-		temp = search_buffer;
-		search_buffer = search_buffer->next;
+		temp = mgmt->iterator;
+		mgmt->iterator = mgmt->iterator->next;
 	}
 	
 	return temp;
@@ -60,32 +62,32 @@ Buffer *searchPrevPos(BM_BufferMgmt *mgmt, PageNumber pNum)
 
 Buffer *searchPos(BM_BufferMgmt *mgmt, PageNumber pNum)
 {
-	Buffer *search_buffer;	
-	search_buffer = mgmt->start;
+	//Buffer *search_buffer;	
+	mgmt->iterator = mgmt->start;
 
-	while (search_buffer != NULL)
+	while (mgmt->iterator != NULL)
 	{
-		if(search_buffer->storage_mgr_pageNum == pNum)
+		if(mgmt->iterator->storage_mgr_pageNum == pNum)
 			break;
 
-		search_buffer = search_buffer->next;
+		mgmt->iterator = mgmt->iterator->next;
 	}
 	
-	return search_buffer;
+	return mgmt->iterator;
 }
 
 int emptyBufferFrame(BM_BufferPool *bm)
 {
 	int flag = 0;
-	Buffer *temp;
-	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
-	while (temp != NULL)
+	//Buffer *temp;
+	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	while (((BM_BufferMgmt *)bm->mgmtData)->iterator != NULL)
 	{
-		if(temp->buffer_mgr_pageNum != flag) //if the page is found
+		if(((BM_BufferMgmt *)bm->mgmtData)->iterator->buffer_mgr_pageNum != flag) //if the page is found
 			return flag; //store it // get back to it to check POS
 		
 		flag = flag + 1;
-		temp = temp->next;
+		((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->iterator->next;
 	}
 
 	if(flag < bm->numPages)
@@ -96,13 +98,13 @@ int emptyBufferFrame(BM_BufferPool *bm)
 
 void updateCounter(BM_BufferMgmt *mgmt)
 {
-	Buffer *temp;
-	temp = mgmt->start; //make temp equals the first element in the buffer pool
+	//Buffer *temp;
+	mgmt->iterator = mgmt->start; //make temp equals the first element in the buffer pool
 
-	while(temp != NULL)
+	while(mgmt->iterator != NULL)
 	{
-		temp->count = temp->count + 1;
-		temp = temp->next; //next
+		mgmt->iterator->count = mgmt->iterator->count + 1;
+		mgmt->iterator = mgmt->iterator->next; //next
 	}
 }
 
@@ -110,18 +112,19 @@ Buffer *searchCnt(BM_BufferMgmt *mgmt)
 {
 	int max = 0;
 
-	Buffer *search_buffer = mgmt->start;
+	//Buffer *search_buffer = mgmt->start;
+	mgmt->iterator = mgmt->start;
 	Buffer *temp = mgmt->start;
 
-	while(search_buffer != NULL)
+	while(mgmt->iterator != NULL)
 	{
-		if(search_buffer->count > max)
+		if(mgmt->iterator->count > max)
 		{
-			max = search_buffer->count;
+			max = mgmt->iterator->count;
 			//printf(" max %d \n", max);
-			temp = search_buffer;
+			temp = mgmt->iterator;
 		}
-		search_buffer = search_buffer->next;
+		mgmt->iterator = mgmt->iterator->next;
 	}
 
 	return temp;
@@ -188,6 +191,11 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
 
     if(mgmt->f == NULL)
     {
+    	free(mgmt->f);
+    	mgmt->f = NULL;
+    	free(mgmt);
+    	mgmt = NULL;
+
         return RC_FILE_HANDLE_NOT_INIT;
     }
 
@@ -198,6 +206,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
 
     mgmt->start = NULL;
     mgmt->current = NULL;
+    mgmt->iterator = NULL;
     mgmt->numReadIO = 0;
     mgmt->numWriteIO = 0;
 
@@ -253,6 +262,7 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 		temp->ph = NULL;
 		free(temp);
 		temp = NULL;
+		((BM_BufferMgmt *)bm->mgmtData)->current = NULL;
 	}
 	free(((BM_BufferMgmt *)bm->mgmtData)->f);
 	((BM_BufferMgmt *)bm->mgmtData)->f = NULL;
@@ -268,29 +278,32 @@ RC forceFlushPool(BM_BufferPool *const bm)
 		return RC_BUFFER_POOL_NOT_INIT;
 
 	int a = RC_OK;
-	Buffer *temp;
-	temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	//Buffer *temp;
+	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 
-	if(temp == NULL)
+	if(((BM_BufferMgmt *)bm->mgmtData)->iterator == NULL)
 		return RC_BUFFER_POOL_EMPTY;
 
-	while (temp != NULL)
+	while (((BM_BufferMgmt *)bm->mgmtData)->iterator != NULL)
 	{
-		if(temp->dirty)
+		if(((BM_BufferMgmt *)bm->mgmtData)->iterator->dirty)
 		{
-			if(temp->fixcounts == 0)
+			if(((BM_BufferMgmt *)bm->mgmtData)->iterator->fixcounts == 0)
 			{
-				a = writeBlock(temp->storage_mgr_pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, temp->ph->data);
+				a = writeBlock(((BM_BufferMgmt *)bm->mgmtData)->iterator->storage_mgr_pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->iterator->ph->data);
 				if(a == RC_OK)
 				{
-					temp->dirty = 0;
+					((BM_BufferMgmt *)bm->mgmtData)->iterator->dirty = 0;
 					((BM_BufferMgmt *)bm->mgmtData)->numWriteIO += 1;
 				}
 			}
 		}
 
-		temp = temp->next;
+		((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->iterator->next;
 	}
+
+	//free(temp);
+	//temp = NULL;
 
 	return a;
 }
@@ -298,6 +311,7 @@ RC forceFlushPool(BM_BufferPool *const bm)
 // Buffer Manager Interface Access Pages
 RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
+	printf("\n=================== Mark Dirty Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
 
@@ -306,14 +320,19 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 	if(bufferPagePos != NULL)
 	{
 		bufferPagePos->dirty = 1;
+		printf("\n=================== Mark Dirty END ========================\n");
 		return RC_OK;
 	}
+
+	//free(bufferPagePos);
+	//bufferPagePos = NULL;
 
 	return RC_BUFFER_POOL_MARKDIRTY_ERROR;
 }
 
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
+	printf("\n=================== Un Pin Page Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
 
@@ -371,7 +390,7 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 				}
 			}		
 
-			//printf("\n RETURNING UNPIN!! ==========");
+			printf("\n=================== Un Pin Page End ========================\n");
 			//printf("%d Length of Buffer\n", lengthofPool(bm->mgmtData));
 			return RC_OK;
 		}
@@ -398,6 +417,8 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 		{
 			bufferPagePos->dirty = 0;
 			((BM_BufferMgmt *)bm->mgmtData)->numWriteIO += 1;
+			//free(bufferPagePos);
+			//bufferPagePos = NULL;
 			return RC_OK;
 		}
 	}
@@ -407,30 +428,34 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
+	printf("\n=================== Pin Page Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
-
+	printf("Buffer Mgmr Already Init\n");
+	printf("%i ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
+	printf("%i pageNum\n", pageNum);
 	if(pageNum >= ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages)
 	{
-		int a = ensureCapacity(pageNum+1,((BM_BufferMgmt *)bm->mgmtData)->f);
+		printf("Increaing the number of Pages in file\n");
+		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f);
 		printf("\nensureCapacity %i\n", a);
 	}
 
 	printf("------------ %i Total Number of Pages -------------\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
 	Buffer *bufferPagePos = searchPos(bm->mgmtData, pageNum);
-	Buffer *temp1 = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	
 	while(bufferPagePos)
 	{
 		if(bufferPagePos->storage_mgr_pageNum == pageNum)
 		{
-			temp1 = bufferPagePos;
+			((BM_BufferMgmt *)bm->mgmtData)->iterator = bufferPagePos;
 			break;
 		}
 		bufferPagePos = bufferPagePos->next;
 	}
 
-	if( bufferPagePos != temp1 || bufferPagePos == 0)
+	if( bufferPagePos != ((BM_BufferMgmt *)bm->mgmtData)->iterator || bufferPagePos == 0)
 	{
 
 		int emptyFrame = emptyBufferFrame(bm);
@@ -440,18 +465,21 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		{
 			if(lengthofPool(bm->mgmtData) == 0)
 			{
-				((BM_BufferMgmt *)bm->mgmtData)->start = (Buffer *)malloc(sizeof(Buffer));
-				((BM_BufferMgmt *)bm->mgmtData)->start->ph = MAKE_PAGE_HANDLE();
-				((BM_BufferMgmt *)bm->mgmtData)->start->ph->data = (char *) malloc(PAGE_SIZE);
-				
+				printf("Test1\n");((BM_BufferMgmt *)bm->mgmtData)->start = (Buffer *)malloc(sizeof(Buffer));
+				printf("Test2\n");((BM_BufferMgmt *)bm->mgmtData)->start->ph = MAKE_PAGE_HANDLE();
+				printf("Test3\n");((BM_BufferMgmt *)bm->mgmtData)->start->ph->data = (char *) malloc(PAGE_SIZE);
+				printf("Test4\n");
 				int a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data);
-
+				printf("Test5\n");
 				if(a == RC_OK)
 				{
+					printf("Test6\n");
 					updateCounter(bm->mgmtData);
+					printf("Test7\n");
 					page->data = ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data;
+					printf("Test8\n");
 					page->pageNum = pageNum;
-
+					printf("Test9\n");
 					((BM_BufferMgmt *)bm->mgmtData)->start->ph->pageNum = pageNum;
 					((BM_BufferMgmt *)bm->mgmtData)->start->buffer_mgr_pageNum = emptyFrame;
 					((BM_BufferMgmt *)bm->mgmtData)->start->dirty = 0;
@@ -461,6 +489,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					((BM_BufferMgmt *)bm->mgmtData)->start->next = NULL;
 
 					((BM_BufferMgmt *)bm->mgmtData)->current = ((BM_BufferMgmt *)bm->mgmtData)->start;
+					printf("Test10\n");
 				}
 				else
 				{
@@ -527,6 +556,11 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	}
 	
 	((BM_BufferMgmt *)bm->mgmtData)->numReadIO += 1;
+	//free(temp1);
+	//temp1 = NULL;
+	//free(bufferPagePos);
+	//bufferPagePos = NULL;
+	printf("\n=================== Pin Page End ========================\n");
 	return RC_OK;
 }
 
@@ -538,19 +572,23 @@ PageNumber *getFrameContents (BM_BufferPool *const bm)
 
 	int i = 0;
 	PageNumber *pn;//array that should be return
-	Buffer *temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	
-	if(temp == NULL)
+	if(((BM_BufferMgmt *)bm->mgmtData)->iterator == NULL)
 		return NO_PAGE;
 
 	pn = (PageNumber *)malloc(sizeof(PageNumber)*bm->numPages);
 
-	while (temp != NULL)//going to each node
+	while (((BM_BufferMgmt *)bm->mgmtData)->iterator != NULL)//going to each node
 	{
-		pn[i] = temp->storage_mgr_pageNum;//checking if page handle has a value
+		pn[i] = ((BM_BufferMgmt *)bm->mgmtData)->iterator->storage_mgr_pageNum;//checking if page handle has a value
 		i++;
-		temp = temp->next;
+		((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->iterator->next;
 	}
+
+	//free(temp);
+	//temp = NULL;
+
 	return pn;
 }
 
@@ -561,7 +599,7 @@ bool *getDirtyFlags (BM_BufferPool *const bm)
 
 	int i = 0, n;
 	bool *dirt;//array that should be return
-	Buffer *temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	n = bm->numPages;
 
 	dirt = (bool *)malloc(sizeof(bool)*n);
@@ -571,13 +609,16 @@ bool *getDirtyFlags (BM_BufferPool *const bm)
 		i++;
 	}
 	i = 0;
-	while (temp != NULL)//going to each node
+	while (((BM_BufferMgmt *)bm->mgmtData)->iterator != NULL)//going to each node
 	{	
-		if(temp->dirty)
+		if(((BM_BufferMgmt *)bm->mgmtData)->iterator->dirty)
 			dirt[i] = TRUE;//storing the dirty values in the array
 		i++;
-		temp = temp->next;
+		((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->iterator->next;
 	}
+
+	//free(temp);
+    //temp = NULL;
 
 	return dirt;
 }
@@ -589,7 +630,7 @@ int *getFixCounts (BM_BufferPool *const bm)
 
 	int i = 0, n;
     int *fix;//array that should be return
-    Buffer *temp = ((BM_BufferMgmt *)bm->mgmtData)->start;
+    ((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
     n = bm->numPages;
 
     fix = (int *)malloc(sizeof(int)*n);
@@ -602,13 +643,16 @@ int *getFixCounts (BM_BufferPool *const bm)
 
     i = 0;
 
-    while (temp != NULL)//going to each node
+    while (((BM_BufferMgmt *)bm->mgmtData)->iterator != NULL)//going to each node
     {
-    	if(temp->fixcounts > 0)
-        	fix[i] = temp->fixcounts;//storing the dirty values in the array
+    	if(((BM_BufferMgmt *)bm->mgmtData)->iterator->fixcounts > 0)
+        	fix[i] = ((BM_BufferMgmt *)bm->mgmtData)->iterator->fixcounts;//storing the dirty values in the array
         i++;
-        temp=temp->next;
+        ((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->iterator->next;
     }
+
+    //free(temp);
+    //temp = NULL;
 
     return fix;
 }
