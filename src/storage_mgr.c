@@ -385,7 +385,7 @@ RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 RC appendEmptyBlock (SM_FileHandle *fHandle)
 {
 	int i;
-	printf("\n=================== Append Empty Block ========================\n");
+	//printf("\n=================== Append Empty Block ========================\n");
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
@@ -408,7 +408,7 @@ RC appendEmptyBlock (SM_FileHandle *fHandle)
 	//fHandle->mgmtInfo = fp;
 	fHandle->totalNumPages = (ftell(fHandle->mgmtInfo)/PAGE_SIZE);
 	fclose(fHandle->mgmtInfo);
-	printf("\n=================== Append Empty Block Complete ========================\n");
+	//printf("\n=================== Append Empty Block Complete ========================\n");
 	return RC_OK;
 }
 RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle)
@@ -424,7 +424,7 @@ RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle)
 	{
 		while (fHandle->totalNumPages != numberOfPages) 
 		{
-			printf("\n=================== Ensure Capacity calling Append Empty Block ========================\n");
+			//printf("\n=================== Ensure Capacity calling Append Empty Block ========================\n");
 			appendEmptyBlock(fHandle); // Append empty block
 		}
 	}

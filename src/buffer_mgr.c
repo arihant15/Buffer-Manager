@@ -226,8 +226,8 @@ RC shutdownBufferPool(BM_BufferPool *const bm)
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
 
-	printf("\n=================== SHUTDOWN========================\n");
-	printf("%i Length of Pool\n", lengthofPool(bm->mgmtData));
+	//printf("\n=================== SHUTDOWN========================\n");
+	//printf("%i Length of Pool\n", lengthofPool(bm->mgmtData));
 	if(((BM_BufferMgmt *)bm->mgmtData)->start == NULL)
 	{
 		free(((BM_BufferMgmt *)bm->mgmtData)->f);
@@ -314,7 +314,7 @@ RC forceFlushPool(BM_BufferPool *const bm)
 // Buffer Manager Interface Access Pages
 RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
-	printf("\n=================== Mark Dirty Start ========================\n");
+	//printf("\n=================== Mark Dirty Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
 
@@ -323,7 +323,7 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 	if(((BM_BufferMgmt *)bm->mgmtData)->search != NULL)
 	{
 		((BM_BufferMgmt *)bm->mgmtData)->search->dirty = 1;
-		printf("\n=================== Mark Dirty END ========================\n");
+		//printf("\n=================== Mark Dirty END ========================\n");
 		return RC_OK;
 	}
 
@@ -335,7 +335,7 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
-	printf("\n=================== Un Pin Page Start ========================\n");
+	//printf("\n=================== Un Pin Page Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
 
@@ -393,7 +393,7 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 				}
 			}		
 
-			printf("\n=================== Un Pin Page End ========================\n");
+			//printf("\n=================== Un Pin Page End ========================\n");
 			//printf("%d Length of Buffer\n", lengthofPool(bm->mgmtData));
 			return RC_OK;
 		}
@@ -431,20 +431,20 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
 {
-	printf("\n=================== Pin Page Start ========================\n");
+	//printf("\n=================== Pin Page Start ========================\n");
 	if(bm->mgmtData == NULL)
 		return RC_BUFFER_POOL_NOT_INIT;
-	printf("Buffer Mgmr Already Init\n");
-	printf("%i ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
-	printf("%i pageNum\n", pageNum);
+	//printf("Buffer Mgmr Already Init\n");
+	//printf("%i ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
+	//printf("%i pageNum\n", pageNum);
 	if(pageNum >= ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages)
 	{
-		printf("Increaing the number of Pages in file\n");
+		//printf("Increaing the number of Pages in file\n");
 		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f);
-		printf("\nensureCapacity %i\n", a);
+		//printf("\nensureCapacity %i\n", a);
 	}
 
-	printf("------------ %i Total Number of Pages -------------\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
+	//printf("------------ %i Total Number of Pages -------------\n", ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages);
 	((BM_BufferMgmt *)bm->mgmtData)->search = searchPos(bm->mgmtData, pageNum);
 	((BM_BufferMgmt *)bm->mgmtData)->iterator = ((BM_BufferMgmt *)bm->mgmtData)->start;
 	
@@ -462,27 +462,25 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	{
 
 		int emptyFrame = emptyBufferFrame(bm);
-		printf("emptyBufferFrame @ %d\n", emptyFrame);
-		printf("%i Length of Pool\n", lengthofPool(bm->mgmtData));
+		//printf("emptyBufferFrame @ %d\n", emptyFrame);
+		//printf("%i Length of Pool\n", lengthofPool(bm->mgmtData));
 		if (emptyFrame != -1)
 		{
 			if(lengthofPool(bm->mgmtData) == 0)
 			{
-				printf("Test1\n");((BM_BufferMgmt *)bm->mgmtData)->start = (Buffer *)malloc(sizeof(Buffer));
-				printf("Test2\n");((BM_BufferMgmt *)bm->mgmtData)->start->ph = MAKE_PAGE_HANDLE();
-				printf("Test3\n");((BM_BufferMgmt *)bm->mgmtData)->start->ph->data = (char *) malloc(PAGE_SIZE);
-				printf("Test4\n");
+				((BM_BufferMgmt *)bm->mgmtData)->start = (Buffer *)malloc(sizeof(Buffer));
+				((BM_BufferMgmt *)bm->mgmtData)->start->ph = MAKE_PAGE_HANDLE();
+				((BM_BufferMgmt *)bm->mgmtData)->start->ph->data = (char *) malloc(PAGE_SIZE);
+				
 				int a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data);
-				printf("Test5\n");
+				
 				if(a == RC_OK)
 				{
-					printf("Test6\n");
 					updateCounter(bm->mgmtData);
-					printf("Test7\n");
+					
 					page->data = ((BM_BufferMgmt *)bm->mgmtData)->start->ph->data;
-					printf("Test8\n");
 					page->pageNum = pageNum;
-					printf("Test9\n");
+					
 					((BM_BufferMgmt *)bm->mgmtData)->start->ph->pageNum = pageNum;
 					((BM_BufferMgmt *)bm->mgmtData)->start->buffer_mgr_pageNum = emptyFrame;
 					((BM_BufferMgmt *)bm->mgmtData)->start->dirty = 0;
@@ -492,7 +490,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					((BM_BufferMgmt *)bm->mgmtData)->start->next = NULL;
 
 					((BM_BufferMgmt *)bm->mgmtData)->current = ((BM_BufferMgmt *)bm->mgmtData)->start;
-					printf("Test10\n");
+					
 				}
 				else
 				{
@@ -534,7 +532,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		}
 		else
 		{
-			printf("-------Implementing Replacement Strategy------\n");
+			//printf("-------Implementing Replacement Strategy------\n");
 			int a = replacementStrategy(bm, page, pageNum);
 
 			if( a != RC_OK)
@@ -563,7 +561,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	//temp1 = NULL;
 	//free(bufferPagePos);
 	//bufferPagePos = NULL;
-	printf("\n=================== Pin Page End ========================\n");
+	//printf("\n=================== Pin Page End ========================\n");
 	return RC_OK;
 }
 
