@@ -145,7 +145,7 @@ RC closePageFile (SM_FileHandle *fHandle)
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 	fHandle->mgmtInfo = fopen(fHandle->fileName,"r");
 	switch(fclose(fHandle->mgmtInfo))//close the file
@@ -169,7 +169,7 @@ RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage)
 	if (fHandle == NULL)//checking for initialization
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)//checking if the file is present or not
+	if(fHandle->mgmtInfo == NULL)//checking if the file is present or not
 		return RC_FILE_NOT_FOUND;
 
 	if(pageNum > fHandle->totalNumPages)//checking if its an invalid page number
@@ -194,7 +194,7 @@ int getBlockPos (SM_FileHandle *fHandle)
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	return fHandle->curPagePos;//returning position of the pointer
@@ -205,7 +205,7 @@ RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	fHandle->mgmtInfo = fopen(fHandle->fileName,"r");
@@ -227,7 +227,7 @@ RC readPreviousBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
     if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 	//checking for errors and returning error codes
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	if(fHandle->curPagePos < 1)
@@ -255,7 +255,7 @@ RC readCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
 		return RC_FILE_HANDLE_NOT_INIT;
 	
 	//returning required errors after checking the conditions
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	if((fHandle->curPagePos) > (fHandle->totalNumPages-1))
@@ -280,7 +280,7 @@ RC readNextBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
     if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	if(fHandle->curPagePos > (fHandle->totalNumPages-1))
@@ -306,7 +306,7 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
     if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 	
 	//seeks to the beginning of the last page
@@ -331,7 +331,7 @@ RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage)
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 	//handling respective error checking 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	if(pageNum > ((fHandle->totalNumPages)))
@@ -361,7 +361,7 @@ RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage)
     if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 
 	if(fHandle->curPagePos > (fHandle->totalNumPages -1))
@@ -389,7 +389,7 @@ RC appendEmptyBlock (SM_FileHandle *fHandle)
 	if (fHandle == NULL)
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 	//printf("\n=================== Append Empty Block Opening File========================\n");
     //FILE *fp;
@@ -417,7 +417,7 @@ RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle)
 	if (fHandle == NULL)   // If file handle is null, throw error
 		return RC_FILE_HANDLE_NOT_INIT;
 
-	if(fopen(fHandle->fileName,"r") == NULL)
+	if(fHandle->mgmtInfo == NULL)
 		return RC_FILE_NOT_FOUND;
 	
 	if (fHandle->totalNumPages < numberOfPages) //Check if total number of pages is less than number of pages
