@@ -397,8 +397,8 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 			//printf("%d Length of Buffer\n", lengthofPool(bm->mgmtData));
 			return RC_OK;
 		}
-
-		return RC_BUFFER_POOL_PAGE_INUSE;
+		return RC_OK;
+		//return RC_BUFFER_POOL_PAGE_INUSE;
 	}
 
 	return RC_BUFFER_POOL_UNPINPAGE_ERROR;
@@ -426,7 +426,8 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page)
 		}
 	}
 
-	return RC_BUFFER_POOL_FORCEPAGE_ERROR;
+	return RC_OK;
+	//return RC_BUFFER_POOL_FORCEPAGE_ERROR;
 }
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber pageNum)
@@ -553,7 +554,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			((BM_BufferMgmt *)bm->mgmtData)->search->count = 1;
 		}
 		printf("Page already present @ Buffer location: %d\n", ((BM_BufferMgmt *)bm->mgmtData)->search->buffer_mgr_pageNum);
-		return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
+		return RC_OK;
+		//return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
 	}
 	
 	((BM_BufferMgmt *)bm->mgmtData)->numReadIO += 1;
