@@ -13,6 +13,7 @@ typedef struct Buffer
 	BM_PageHandle *ph;
 	bool dirty;
 	int count;
+	int freqCount;
 	int fixcounts;
 	struct Buffer *next;
 } Buffer;
@@ -129,6 +130,93 @@ Buffer *searchCnt(BM_BufferMgmt *mgmt)
 	return mgmt->search;
 }
 
+int getMaxCount(BM_BufferMgmt *mgmt)
+{
+	int max = 0;
+	mgmt->iterator = mgmt->start;
+	mgmt->search = mgmt->start;
+
+	while(mgmt->iterator != NULL)
+	{
+		if(mgmt->iterator->count > max)
+		{
+			if(mgmt->iterator->fixcounts == 0)
+			{
+				max = mgmt->iterator->count;
+				mgmt->search = mgmt->iterator;
+			}			
+		}
+		mgmt->iterator = mgmt->iterator->next;
+	}
+
+	return mgmt->search->count;
+
+}
+
+Buffer *searchMinFreqCnt(BM_BufferMgmt *mgmt)
+{
+	int min = 99999;
+	int maxCount = getMaxCount(mgmt);
+	
+	mgmt->iterator = mgmt->start;
+	mgmt->search = mgmt->start;
+
+	while(mgmt->iterator != NULL)
+	{
+		if(mgmt->iterator->freqCount <= min)
+		{
+			if(mgmt->iterator->fixcounts == 0 && mgmt->iterator->count <=  maxCount && mgmt->iterator->count != 1)
+			{
+				min = mgmt->iterator->freqCount;
+				mgmt->search = mgmt->iterator;
+			}
+		}
+		mgmt->iterator = mgmt->iterator->next;
+	}
+
+	return mgmt->search;
+}
+
+int LFU(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageNum)
+{
+	int a;
+
+	((BM_BufferMgmt *)bm->mgmtData)->search = searchMinFreqCnt(bm->mgmtData);
+
+	if(((BM_BufferMgmt *)bm->mgmtData)->search->dirty == 1)
+	{
+		a = writeBlock(((BM_BufferMgmt *)bm->mgmtData)->search->storage_mgr_pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->search->ph->data);
+
+		if (a == RC_OK)
+		{
+			((BM_BufferMgmt *)bm->mgmtData)->search->dirty = 0;
+			((BM_BufferMgmt *)bm->mgmtData)->numWriteIO += 1;
+		}
+	}
+
+	updateCounter(bm->mgmtData);
+
+	a = readBlock(pageNum, ((BM_BufferMgmt *)bm->mgmtData)->f, ((BM_BufferMgmt *)bm->mgmtData)->search->ph->data);
+
+	if(a == RC_OK)
+	{
+		((BM_BufferMgmt *)bm->mgmtData)->search->ph->pageNum = pageNum;
+		((BM_BufferMgmt *)bm->mgmtData)->search->storage_mgr_pageNum = pageNum;
+		((BM_BufferMgmt *)bm->mgmtData)->search->dirty = 0;
+		((BM_BufferMgmt *)bm->mgmtData)->search->count = 1;
+		((BM_BufferMgmt *)bm->mgmtData)->search->freqCount = 1;
+		((BM_BufferMgmt *)bm->mgmtData)->search->fixcounts = 1;
+
+		page->data = ((BM_BufferMgmt *)bm->mgmtData)->search->ph->data;
+		page->pageNum = pageNum;
+
+		return RC_OK;
+	}
+
+	return a;
+
+}
+
 int replacementStrategy(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageNum)
 {
 	int a;
@@ -156,6 +244,7 @@ int replacementStrategy(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageN
 		((BM_BufferMgmt *)bm->mgmtData)->search->storage_mgr_pageNum = pageNum;
 		((BM_BufferMgmt *)bm->mgmtData)->search->dirty = 0;
 		((BM_BufferMgmt *)bm->mgmtData)->search->count = 1;
+		((BM_BufferMgmt *)bm->mgmtData)->search->freqCount = 1;
 		((BM_BufferMgmt *)bm->mgmtData)->search->fixcounts = 1;
 
 		page->data = ((BM_BufferMgmt *)bm->mgmtData)->search->ph->data;
@@ -379,6 +468,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					((BM_BufferMgmt *)bm->mgmtData)->start->buffer_mgr_pageNum = emptyFrame;
 					((BM_BufferMgmt *)bm->mgmtData)->start->dirty = 0;
 					((BM_BufferMgmt *)bm->mgmtData)->start->count = 1;
+					((BM_BufferMgmt *)bm->mgmtData)->start->freqCount = 1;
 					((BM_BufferMgmt *)bm->mgmtData)->start->fixcounts = 1;
 					((BM_BufferMgmt *)bm->mgmtData)->start->storage_mgr_pageNum = pageNum;
 					((BM_BufferMgmt *)bm->mgmtData)->start->next = NULL;
@@ -412,6 +502,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 					((BM_BufferMgmt *)bm->mgmtData)->current->buffer_mgr_pageNum = emptyFrame;
 					((BM_BufferMgmt *)bm->mgmtData)->current->dirty = 0;
 					((BM_BufferMgmt *)bm->mgmtData)->current->count = 1;
+					((BM_BufferMgmt *)bm->mgmtData)->current->freqCount = 1;
 					((BM_BufferMgmt *)bm->mgmtData)->current->fixcounts = 1;
 					((BM_BufferMgmt *)bm->mgmtData)->current->storage_mgr_pageNum = pageNum;
 					((BM_BufferMgmt *)bm->mgmtData)->current->next = NULL;
@@ -428,7 +519,11 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 		}
 		else
 		{
-			int a = replacementStrategy(bm, page, pageNum);
+			int a;
+			if(bm->strategy == RS_LFU)
+				a = LFU(bm, page, pageNum);
+			else
+				a = replacementStrategy(bm, page, pageNum);
 
 			if( a != RC_OK)
 			{
@@ -449,6 +544,9 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			updateCounter(bm->mgmtData);
 			((BM_BufferMgmt *)bm->mgmtData)->search->count = 1;
 		}
+
+		if(bm->strategy == RS_LFU)
+			((BM_BufferMgmt *)bm->mgmtData)->search->freqCount += 1;
 
 		//printf("Page already present @ Buffer location: %d\n", ((BM_BufferMgmt *)bm->mgmtData)->search->buffer_mgr_pageNum);
 
