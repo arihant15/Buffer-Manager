@@ -5,6 +5,12 @@
 #include "dberror.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "pthread.h"
+
+//Mutex Objects for making initialize, pin and unpin methods thread safe
+static pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_unpinPage = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_pinPage = PTHREAD_MUTEX_INITIALIZER;
 
 //Buffer Structure used for all the implementations
 typedef struct Buffer
@@ -135,6 +141,7 @@ Buffer *searchCnt(BM_BufferMgmt *mgmt)
 	return mgmt->search;
 }
 
+// Return max count value for LFU
 int getMaxCount(BM_BufferMgmt *mgmt)
 {
 	int max = 0;
@@ -158,6 +165,7 @@ int getMaxCount(BM_BufferMgmt *mgmt)
 
 }
 
+//Return Minimum frequency count value for LFU
 Buffer *searchMinFreqCnt(BM_BufferMgmt *mgmt)
 {
 	int min = 99999;
@@ -182,6 +190,7 @@ Buffer *searchMinFreqCnt(BM_BufferMgmt *mgmt)
 	return mgmt->search;
 }
 
+//Implementation of LFU (Least frequently used) algorithm
 int LFU(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageNum)
 {
 	int a;
@@ -222,6 +231,7 @@ int LFU(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageNum)
 
 }
 
+// For LRU and FIFO replace the buffer according to the strategy
 int replacementStrategy(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageNum)
 {
 	int a;
@@ -261,13 +271,14 @@ int replacementStrategy(BM_BufferPool *bm, BM_PageHandle *page, PageNumber pageN
 	return a;
 }
 
-//initializing the buffer pool
+//Initializing the buffer pool
 RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const int numPages, ReplacementStrategy strategy, void *stratData)
 {
-	if(bm->mgmtData != NULL)//error check
-		return RC_BUFFER_POOL_ALREADY_INIT;
+    if(bm->mgmtData != NULL)//error check
+        return RC_BUFFER_POOL_ALREADY_INIT;
 
-	BM_BufferMgmt *mgmt;
+    pthread_mutex_lock(&mutex_init); // Lock the mutex when entering critical regoin
+    BM_BufferMgmt *mgmt;
     mgmt = (BM_BufferMgmt *)malloc(sizeof(BM_BufferMgmt));
     mgmt->f = (SM_FileHandle *)malloc(sizeof(SM_FileHandle));
 	//initiazing the buffer to NULL
@@ -278,14 +289,19 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     	free(mgmt);
     	mgmt = NULL;
 
+	pthread_mutex_unlock(&mutex_init);//Unlock mutex while returning
         return RC_FILE_HANDLE_NOT_INIT;
     }
 
     int ret = openPageFile(pageFileName, mgmt->f);
 
     if(ret == RC_FILE_NOT_FOUND)
-		return RC_FILE_NOT_FOUND;
-	//initializing the buffer structure variables to NULLs and Zero
+    {
+	pthread_mutex_unlock(&mutex_init);//Unlock mutex while returning
+	return RC_FILE_NOT_FOUND;
+    }
+    
+    //initializing the buffer structure variables to NULLs and Zero
     mgmt->start = NULL;
     mgmt->current = NULL;
     mgmt->iterator = NULL;
@@ -293,12 +309,13 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const
     mgmt->numReadIO = 0;
     mgmt->numWriteIO = 0;
 
-//initializing values to buffer variables
+    //initializing values to buffer variables
     bm->pageFile = pageFileName;
     bm->numPages = numPages;
     bm->strategy = strategy;
     bm->mgmtData = mgmt;
 
+    pthread_mutex_unlock(&mutex_init); //Unlock mutex while returning
     return RC_OK;
 }
 
@@ -387,12 +404,14 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 	return RC_BUFFER_POOL_MARKDIRTY_ERROR;
 }
+
 //function to unpin a page
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 {
 	if(bm->mgmtData == NULL)//check if the buffer pool is initialized
 		return RC_BUFFER_POOL_NOT_INIT;
-	
+
+	pthread_mutex_lock(&mutex_unpinPage); // Lock mutex before entering critical region	
 	((BM_BufferMgmt *)bm->mgmtData)->search = searchPos(bm->mgmtData, page->pageNum);//look for the page and store the value
 
 
@@ -400,11 +419,12 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page)
 
 	{
 		((BM_BufferMgmt *)bm->mgmtData)->search->fixcounts -= 1;//decreament the fix count by 1
-		
+		pthread_mutex_unlock(&mutex_unpinPage); // Unlock mutex while returning	
 		return RC_OK;
 		//return RC_BUFFER_POOL_PAGE_INUSE;
 	}
 
+	pthread_mutex_unlock(&mutex_unpinPage); // Unlock mutex while returning
 	return RC_BUFFER_POOL_UNPINPAGE_ERROR;
 }
 
@@ -441,10 +461,11 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 	if(bm->mgmtData == NULL)//error check
 		return RC_BUFFER_POOL_NOT_INIT;
 
+	pthread_mutex_lock(&mutex_pinPage);
 	if(pageNum >= ((BM_BufferMgmt *)bm->mgmtData)->f->totalNumPages)
 	{
 		printf("Creating missing page %i\n", pageNum);
-		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f);
+		int a = ensureCapacity(pageNum + 1, ((BM_BufferMgmt *)bm->mgmtData)->f); 
 	}
 
 	((BM_BufferMgmt *)bm->mgmtData)->search = searchPos(bm->mgmtData, pageNum);
@@ -495,6 +516,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 				else
 				{
 					printf("Pin Page failed due to: %d \n", a);
+					pthread_mutex_unlock(&mutex_pinPage); // Unlock mutex while returning
 					return RC_BUFFER_POOL_PINPAGE_ERROR;
 				}
 			}
@@ -529,6 +551,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 				else
 				{
 					printf("Pin Page failed due to: %d \n", a);
+					pthread_mutex_unlock(&mutex_pinPage); // Unlock mutex while returning
 					return RC_BUFFER_POOL_PINPAGE_ERROR;
 				}
 			}
@@ -544,6 +567,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			if( a != RC_OK)
 			{
 				printf("Pin Page failed due to: %d \n", a);
+				pthread_mutex_unlock(&mutex_pinPage); // Unlock mutex while returning
 				return RC_BUFFER_POOL_PINPAGE_ERROR;
 			}
 		}
@@ -565,12 +589,13 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber
 			((BM_BufferMgmt *)bm->mgmtData)->search->freqCount += 1;
 
 		//printf("Page already present @ Buffer location: %d\n", ((BM_BufferMgmt *)bm->mgmtData)->search->buffer_mgr_pageNum);
-
+		pthread_mutex_unlock(&mutex_pinPage); // Unlock mutex while returning
 		return RC_OK;
 		//return RC_BUFFER_POOL_PINPAGE_ALREADY_PRESENT;
 	}
 	
 	((BM_BufferMgmt *)bm->mgmtData)->numReadIO += 1;
+	pthread_mutex_unlock(&mutex_pinPage); // Unlock mutex while returning
 	return RC_OK;
 }
 
@@ -606,7 +631,7 @@ PageNumber *getFrameContents (BM_BufferPool *const bm)
 
 	return pn;
 }
-//returns weather the page is dirty or not
+//returns whether the page is dirty or not
 bool *getDirtyFlags (BM_BufferPool *const bm)
 {
 	if(bm->mgmtData == NULL)//error check
