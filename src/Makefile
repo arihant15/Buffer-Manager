@@ -1,24 +1,13 @@
-SRC := \
-	dberror.c \
-	storage_mgr.c \
-	buffer_mgr_stat.c \
-	buffer_mgr.c \
-	test_assign2_1.c 
-	
-OBJ := \
-	dberror.o \
-	storage_mgr.o \
-	buffer_mgr_stat.o \
-	buffer_mgr.o \
-	test_assign2_1.o 
-	
+CC := gcc
+SRC :=  dberror.c storage_mgr.c buffer_mgr_stat.c buffer_mgr.c test_assign2_1.c
+OBJ :=  dberror.o storage_mgr.o buffer_mgr_stat.o buffer_mgr.o test_assign2_1.o
 
-assign2: $(OBJ)
-	gcc -w -o assign2 $?
-	
+assignment2: $(OBJ)
+	$(CC) -w -o test_assign2 $?
+	$(CC) -w -o test_assign2_2 dberror.c storage_mgr.c buffer_mgr_stat.c buffer_mgr.c test_assign2_2.c
 
 %.o: %.c
-	gcc -g -c $<
+	$(CC) -w -g -c $<
 
 clean:
-	rm -rf assign2 *.o
+	rm -rf test_assign2 test_assign2_2 *.o
